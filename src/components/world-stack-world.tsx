@@ -6,10 +6,15 @@ import { CineLights } from "@/components/cine-lights";
 import type { CityGfx } from "@/lib/gfx";
 import {
   EARTH_R,
+  STACK_BOUNDS,
   STACK_CAM,
   STACK_GOV,
+  STACK_POLICY,
   STACK_REGIONS,
   STACK_SATS,
+  STACK_TREATIES,
+  boundSegments,
+  govById,
   latLonToVec,
   type StackLayer,
 } from "@/lib/world-stack";
@@ -92,7 +97,12 @@ function Earth({ gfx, layer }: { gfx: CityGfx; layer: StackLayer }) {
       </mesh>
       <mesh>
         <sphereGeometry args={[EARTH_R + 0.025, segs, segs / 2]} />
-        <meshBasicMaterial color="#19E6E6" transparent opacity={layer === "atlas" ? 0.12 : 0.05} wireframe />
+        <meshBasicMaterial
+          color="#19E6E6"
+          transparent
+          opacity={layer === "atlas" ? 0.08 : 0.04}
+          wireframe
+        />
       </mesh>
       <mesh>
         <sphereGeometry args={[EARTH_R + 0.08, 24, 16]} />
@@ -158,7 +168,70 @@ function Sats({ gfx, reduced }: { gfx: CityGfx; reduced: boolean }) {
   );
 }
 
-function AtlasNet({ region }: { region: string | null }) {
+function Borders({ hot, selected }: { hot: boolean; selected: string | null }) {
+  const geos = useMemo(
+    () =>
+      STACK_BOUNDS.map((b) => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(boundSegments(b.path), 3));
+        return { g, id: b.id, regionId: b.regionId, kind: b.kind };
+      }),
+    [],
+  );
+  useEffect(() => () => geos.forEach((x) => x.g.dispose()), [geos]);
+  return (
+    <group>
+      {geos.map(({ g, id, regionId, kind }) => {
+        const on = selected === regionId;
+        const dim = Boolean(selected) && !on;
+        const red = hot && (on || !selected);
+        return (
+          <lineSegments key={id} geometry={g} renderOrder={hot ? 4 : 2}>
+            <lineBasicMaterial
+              color={red ? "#FF2A2A" : "#19E6E6"}
+              transparent
+              opacity={hot ? (on ? 0.95 : dim ? 0.16 : kind === "state" ? 0.55 : 0.78) : kind === "state" ? 0.18 : 0.32}
+              depthTest
+            />
+          </lineSegments>
+        );
+      })}
+    </group>
+  );
+}
+
+function TreatyArcs() {
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    const pts: number[] = [];
+    for (const [aId, bId] of STACK_TREATIES) {
+      const a = govById(aId);
+      const b = govById(bId);
+      if (!a || !b) continue;
+      const pa = new THREE.Vector3(...latLonToVec(a.lat, a.lon, EARTH_R + 0.06));
+      const pb = new THREE.Vector3(...latLonToVec(b.lat, b.lon, EARTH_R + 0.06));
+      const mid = pa.clone().add(pb).normalize().multiplyScalar(EARTH_R + 0.38);
+      const n = 16;
+      for (let i = 0; i < n; i++) {
+        const t0 = i / n;
+        const t1 = (i + 1) / n;
+        const p0 = new THREE.Vector3().lerpVectors(pa, pb, t0).lerp(mid, Math.sin(Math.PI * t0) * 0.45);
+        const p1 = new THREE.Vector3().lerpVectors(pa, pb, t1).lerp(mid, Math.sin(Math.PI * t1) * 0.45);
+        pts.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
+      }
+    }
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+    return g;
+  }, []);
+  useEffect(() => () => geo.dispose(), [geo]);
+  return (
+    <lineSegments geometry={geo}>
+      <lineBasicMaterial color="#d8c48a" transparent opacity={0.7} />
+    </lineSegments>
+  );
+}
+
+function AtlasNet({ region, dim }: { region: string | null; dim?: boolean }) {
   const geo = useMemo(() => {
     const g = new THREE.BufferGeometry();
     const pts: number[] = [];
@@ -175,8 +248,36 @@ function AtlasNet({ region }: { region: string | null }) {
   useEffect(() => () => geo.dispose(), [geo]);
   return (
     <lineSegments geometry={geo}>
-      <lineBasicMaterial color={region === "agentropolis" ? "#FF2A2A" : "#19E6E6"} transparent opacity={0.55} />
+      <lineBasicMaterial color={region === "agentropolis" ? "#FF2A2A" : "#19E6E6"} transparent opacity={dim ? 0.22 : 0.55} />
     </lineSegments>
+  );
+}
+
+function PolicyMarks({ selected }: { selected: string | null }) {
+  const items = selected ? STACK_POLICY.filter((p) => p.regionId === selected) : STACK_POLICY;
+  return (
+    <group>
+      {items.map((p) => {
+        const pos = latLonToVec(p.lat, p.lon, EARTH_R + 0.11);
+        const labeled = Boolean(selected);
+        return (
+          <group key={p.id} position={pos}>
+            <mesh>
+              <ringGeometry args={[0.05, 0.07, 16]} />
+              <meshBasicMaterial color="#FF2A2A" transparent opacity={labeled ? 0.85 : 0.35} side={THREE.DoubleSide} />
+            </mesh>
+            {labeled ? (
+              <Html center distanceFactor={12} style={{ pointerEvents: "none" }}>
+                <span className="stack-pin is-gov">
+                  {p.name}
+                  <em>policy</em>
+                </span>
+              </Html>
+            ) : null}
+          </group>
+        );
+      })}
+    </group>
   );
 }
 
@@ -191,14 +292,15 @@ function Pins({
   onRegion: (id: string) => void;
   onEnterCity: () => void;
 }) {
-  const showGov = layer === "grid" || layer === "city";
-  const gov = showGov ? STACK_GOV.filter((g) => !region || region === "agentropolis" || g.regionId === region) : [];
+  const showGov = layer === "grid";
+  const gov = showGov ? STACK_GOV : [];
   return (
     <group>
       {STACK_REGIONS.map((r) => {
         const p = latLonToVec(r.lat, r.lon, EARTH_R + 0.05);
         const hot = region === r.id;
         const city = r.kind === "city";
+        const named = layer === "atlas" || hot || (layer === "grid" && !region) || (layer === "city" && city);
         return (
           <group key={r.id} position={p}>
             <mesh
@@ -208,16 +310,19 @@ function Pins({
                 else onRegion(r.id);
               }}
             >
-              <sphereGeometry args={[city ? 0.055 : 0.038, 12, 12]} />
+              <sphereGeometry args={[city ? 0.055 : hot ? 0.05 : 0.034, 12, 12]} />
               <meshStandardMaterial
-                color={city ? "#FF2A2A" : "#19E6E6"}
-                emissive={city ? "#FF2A2A" : "#19E6E6"}
-                emissiveIntensity={hot ? 1.4 : 0.6}
+                color={city ? "#FF2A2A" : layer === "grid" ? "#FF2A2A" : "#19E6E6"}
+                emissive={city || (layer === "grid" && hot) ? "#FF2A2A" : "#19E6E6"}
+                emissiveIntensity={hot ? 1.5 : 0.55}
               />
             </mesh>
-            {layer !== "orbit" ? (
+            {named && layer !== "orbit" && layer !== "worldq" ? (
               <Html center distanceFactor={10} style={{ pointerEvents: "none" }}>
-                <span className={city ? "stack-pin is-city" : "stack-pin"}>{r.name}</span>
+                <span className={city ? "stack-pin is-city" : layer === "grid" ? "stack-pin is-gov" : "stack-pin"}>
+                  {r.name}
+                  {layer === "grid" ? <em>jurisdiction</em> : null}
+                </span>
               </Html>
             ) : null}
           </group>
@@ -225,15 +330,39 @@ function Pins({
       })}
       {gov.map((g) => {
         const p = latLonToVec(g.lat, g.lon, EARTH_R + 0.09);
+        const on = !region || g.regionId === region;
+        if (!on) {
+          return (
+            <mesh key={g.id} position={p}>
+              <sphereGeometry args={[0.016, 8, 8]} />
+              <meshBasicMaterial color="#d8c48a" transparent opacity={0.22} />
+            </mesh>
+          );
+        }
+        const labeled = Boolean(region) && g.regionId === region;
         return (
           <group key={g.id} position={p}>
-            <mesh>
-              <boxGeometry args={[0.04, 0.09, 0.04]} />
-              <meshStandardMaterial color="#d8c48a" emissive="#19E6E6" emissiveIntensity={0.2} />
+            <mesh
+              onClick={(e) => {
+                e.stopPropagation();
+                onRegion(g.regionId);
+              }}
+            >
+              <boxGeometry args={[0.03, labeled ? 0.078 : 0.042, 0.03]} />
+              <meshStandardMaterial
+                color={g.kind === "regulator" ? "#FF2A2A" : g.kind === "treaty" ? "#d8c48a" : "#19E6E6"}
+                emissive={g.kind === "regulator" ? "#FF2A2A" : "#19E6E6"}
+                emissiveIntensity={labeled ? 0.85 : 0.32}
+              />
             </mesh>
-            <Html center distanceFactor={12} style={{ pointerEvents: "none" }}>
-              <span className="stack-pin is-gov">{g.name}</span>
-            </Html>
+            {labeled ? (
+              <Html center distanceFactor={12} style={{ pointerEvents: "none" }}>
+                <span className="stack-pin is-gov">
+                  {g.name}
+                  <em>{g.kind}</em>
+                </span>
+              </Html>
+            ) : null}
           </group>
         );
       })}
@@ -310,12 +439,17 @@ export function WorldStackWorld({ layer, region, gfx, reduced, paused, onRegion,
       <Stars count={busy ? 220 : 90} />
       <Earth gfx={gfx} layer={layer} />
       {layer === "orbit" || layer === "atlas" ? <Orbits busy={busy} reduced={reduced} /> : null}
-      {layer === "orbit" || layer === "atlas" ? <Sats gfx={gfx} reduced={reduced} /> : null}
-      {layer !== "orbit" && layer !== "worldq" ? <AtlasNet region={region} /> : null}
+      {layer === "orbit" ? <Sats gfx={gfx} reduced={reduced} /> : null}
+      {layer === "atlas" || layer === "grid" ? <Borders hot={layer === "grid"} selected={region} /> : null}
+      {layer === "atlas" || layer === "grid" || layer === "city" ? (
+        <AtlasNet region={region} dim={layer === "grid"} />
+      ) : null}
+      {layer === "grid" ? <TreatyArcs /> : null}
+      {layer === "grid" ? <PolicyMarks selected={region} /> : null}
       {layer !== "worldq" ? (
         <Pins layer={layer} region={region} onRegion={onRegion} onEnterCity={onEnterCity} />
       ) : null}
-      {layer === "worldq" || layer === "city" ? <WorldQ gfx={gfx} /> : null}
+      {layer === "worldq" ? <WorldQ gfx={gfx} /> : null}
       <Rig layer={layer} reduced={reduced} />
     </Canvas>
   );

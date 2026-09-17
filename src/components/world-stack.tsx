@@ -3,12 +3,15 @@ import { useCompute } from "@/lib/compute";
 import { ComputeDock } from "@/components/grid-chrome";
 import type { CityGfx } from "@/lib/gfx";
 import {
+  STACK_BOUNDARY,
   STACK_BY_ID,
+  STACK_GOV,
   STACK_INTRO,
   STACK_LAYERS,
   STACK_RAIL,
   STACK_REGIONS,
   STACK_SECONDARY,
+  STACK_START,
   layerByIndex,
   layerIndex,
   stackMeta,
@@ -28,7 +31,7 @@ type WorldProps = {
 
 export function WorldStack({ onClose, onCity }: { onClose: () => void; onCity: () => void }) {
   const [World, setWorld] = useState<ComponentType<WorldProps> | null>(null);
-  const [layer, setLayer] = useState<StackLayer>("orbit");
+  const [layer, setLayer] = useState<StackLayer>(STACK_START);
   const [region, setRegion] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [reduced, setReduced] = useState(false);
@@ -129,7 +132,10 @@ export function WorldStack({ onClose, onCity }: { onClose: () => void; onCity: (
             className={cn("stack-tick", layer === item.id && "is-on")}
           >
             <span className="stack-tick-mark">{String(i + 1).padStart(2, "0")}</span>
-            <span className="stack-tick-label">{item.label}</span>
+            <span className="stack-tick-copy">
+              <span className="stack-tick-label">{item.label}</span>
+              <span className="stack-tick-sub">{item.sub}</span>
+            </span>
           </button>
         ))}
       </aside>
@@ -138,12 +144,15 @@ export function WorldStack({ onClose, onCity }: { onClose: () => void; onCity: (
         <div className="stack-hud pointer-events-auto">
           <p className="font-mono text-2xs tracking-[0.2em] text-cyan">{current.mark} · {current.name}</p>
           <p className="mt-1 font-display text-lg font-semibold tracking-tight text-paper">{current.line}</p>
-          <p className="mt-1 text-xs text-mute">{current.knows}</p>
+          <p className="mt-1 text-xs text-mute">{current.identity}</p>
+          <p className="mt-1 text-xs tracking-[0.04em] text-cyan">{current.knows}</p>
+          {layer === "grid" ? (
+            <p className="mt-2 text-2xs leading-relaxed text-mute">{STACK_BOUNDARY}</p>
+          ) : null}
           {place ? <p className="mt-2 text-2xs tracking-[0.12em] text-cyan uppercase">{place.name} · {place.note}</p> : null}
           <p className="mt-3 font-mono text-2xs text-mute">
             {meta.provider_status} · {meta.provider} · confidence {meta.confidence} · estimated
           </p>
-          <p className="mt-1 text-2xs text-mute">WORLD GRID describes jurisdiction. It does not grant permission.</p>
         </div>
         <div className="pointer-events-auto flex flex-wrap gap-2">
           {layer === "city" ? (
@@ -200,6 +209,17 @@ function StackFallback({
             {r.name}
           </button>
         ))}
+        {layer === "grid"
+          ? STACK_GOV.map((g) => (
+              <span
+                key={g.id}
+                className="stack-fall-pin is-gov"
+                style={{ left: `${((g.lon + 180) / 360) * 100}%`, top: `${((90 - g.lat) / 180) * 100}%` }}
+              >
+                {g.name}
+              </span>
+            ))
+          : null}
       </div>
     </div>
   );

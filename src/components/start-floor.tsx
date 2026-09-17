@@ -46,6 +46,7 @@ export function StartHere({
   onStreet,
   onDistrict,
   onWorld,
+  onSignal,
 }: {
   onGuide: () => void;
   onFilm: () => void;
@@ -55,6 +56,7 @@ export function StartHere({
   onStreet: () => void;
   onDistrict: (id: string) => void;
   onWorld: () => void;
+  onSignal?: () => void;
 }) {
   const pick = (id: string) => {
     if (id === "construct") onBuild();
@@ -72,7 +74,7 @@ export function StartHere({
       </div>
 
       <div className="pointer-events-auto absolute inset-x-0 top-[18%] z-10 flex flex-col items-center px-3 md:top-[16%]">
-        <HubCard onPick={pick} onCenter={onCity} onWorld={onWorld} />
+        <HubCard onPick={pick} onCenter={onCity} onWorld={onWorld} onSignal={onSignal} />
       </div>
 
       <div className="sr-only">
@@ -94,6 +96,11 @@ export function StartHere({
         <button type="button" data-start-opt="world" data-stack-open onClick={onWorld}>
           Explore the world
         </button>
+        {onSignal ? (
+          <button type="button" data-start-opt="signal" data-signal-open onClick={onSignal}>
+            Watch Agentropolis
+          </button>
+        ) : null}
       </div>
     </div>
   );

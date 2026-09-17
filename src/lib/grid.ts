@@ -1217,8 +1217,14 @@ export const PALETTE = [
 		districtId: null
 	},
 	{
+		id: "signal",
+		label: "Agentropolis documentary",
+		view: "city",
+		districtId: null
+	},
+	{
 		id: "film",
-		label: "Play the documentary",
+		label: "Play the record",
 		view: "atv",
 		districtId: null
 	}

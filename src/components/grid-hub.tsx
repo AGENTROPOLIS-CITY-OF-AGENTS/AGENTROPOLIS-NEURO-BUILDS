@@ -78,11 +78,13 @@ export function HubCard({
   onPick,
   onCenter,
   onWorld,
+  onSignal,
   className,
 }: {
   onPick: (districtId: string) => void;
   onCenter: () => void;
   onWorld?: () => void;
+  onSignal?: () => void;
   className?: string;
 }) {
   return (
@@ -92,12 +94,17 @@ export function HubCard({
         <h2 className="hub-title">FROM CITY STREETS TO ORBITAL SPACE</h2>
         <p className="hub-body">AGENTROPOLIS is being built as one connected intelligence civilization.</p>
         <div className="flex flex-wrap gap-2">
+          {onSignal ? (
+            <button type="button" className="hub-go" onClick={onSignal} data-signal-open="">
+              Watch Agentropolis
+            </button>
+          ) : null}
           {onWorld ? (
-            <button type="button" className="hub-go" onClick={onWorld} data-stack-open="">
+            <button type="button" className={cn("hub-go", onSignal && "hub-go-ghost")} onClick={onWorld} data-stack-open="">
               Explore the world
             </button>
           ) : null}
-          <button type="button" className={cn("hub-go", onWorld && "hub-go-ghost")} onClick={onCenter} data-start-enter="">
+          <button type="button" className="hub-go hub-go-ghost" onClick={onCenter} data-start-enter="">
             Enter Agentropolis
           </button>
         </div>

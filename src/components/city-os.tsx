@@ -52,6 +52,7 @@ export function CityOS() {
   const [tick, setTick] = useState(0);
   const [filmSeek, setFilmSeek] = useState<number | null>(null);
   const [filmOpen, setFilmOpen] = useState(false);
+  const [signalOpen, setSignalOpen] = useState(false);
   const [ambientMuted, setAmbientMuted] = useState(false);
   const [filmAspect, setFilmAspect] = useState<"film" | "feed">("film");
   const [query, setQuery] = useState("");
@@ -86,6 +87,12 @@ export function CityOS() {
   const [Street, setStreet] = useState<ComponentType<{ onClose: () => void; onCity: () => void }> | null>(null);
   const [Foil, setFoil] = useState<ComponentType<{ onClose: () => void }> | null>(null);
   const [Stack, setStack] = useState<ComponentType<{ onClose: () => void; onCity: () => void }> | null>(null);
+  const [Archive, setArchive] = useState<ComponentType<{
+    onClose: () => void;
+    onCity: () => void;
+    onWorld: () => void;
+    onFilm: (chapterId: string) => void;
+  }> | null>(null);
   const [Film, setFilm] = useState<any>(null);
   const [Guide, setGuide] = useState<ComponentType<{
     step: number;
@@ -156,9 +163,9 @@ export function CityOS() {
     const bed = ambientRef.current;
     if (!bed) return;
     bed.setMuted(ambientMuted);
-    if (filmOpen || ambientMuted) bed.stop();
+    if (filmOpen || signalOpen || ambientMuted) bed.stop();
     else void bed.start();
-  }, [filmOpen, ambientMuted]);
+  }, [filmOpen, signalOpen, ambientMuted]);
 
   useEffect(() => {
     if (compute === "minimum" || mode === "start" || mode === "world") {
@@ -231,6 +238,20 @@ export function CityOS() {
   }, [view, mode, filmOpen]);
 
   useEffect(() => {
+    if (!signalOpen) {
+      setArchive(null);
+      return;
+    }
+    let alive = true;
+    void import("@/components/neuro-archive").then((mod) => {
+      if (alive) setArchive(() => mod.NeuroArchive);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [signalOpen]);
+
+  useEffect(() => {
     if (!filmOpen) return;
     let alive = true;
     void import("@/components/film-player").then((mod) => {
@@ -282,6 +303,10 @@ export function CityOS() {
           setFilmOpen(false);
           return;
         }
+        if (signalOpen) {
+          setSignalOpen(false);
+          return;
+        }
         if (selected === "utility" && mode === "city") {
           setSelected(null);
           setCampusFocus(null);
@@ -318,7 +343,7 @@ export function CityOS() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [palette, filmOpen, mode, selected, cityInside, focusAgent]);
+  }, [palette, filmOpen, signalOpen, mode, selected, cityInside, focusAgent]);
 
   useEffect(() => {
     if (palette) {
@@ -354,6 +379,7 @@ export function CityOS() {
   const goView = (next: ViewId) => {
     filmRef.current?.pause();
     setFilmOpen(false);
+    setSignalOpen(false);
     setPalette(false);
     setMode("city");
     if (next === "observatory") {
@@ -370,6 +396,7 @@ export function CityOS() {
   const openDistrict = (id: string) => {
     filmRef.current?.pause();
     setFilmOpen(false);
+    setSignalOpen(false);
     setSelected(id);
     setView("city");
     setMode("city");
@@ -398,6 +425,7 @@ export function CityOS() {
     if (mode !== "journey" && mode !== "protocol") setSelected(null);
     setView("city");
     setFilmOpen(true);
+    setSignalOpen(false);
     setPalette(false);
     setFilmSeek(ch.start);
   };
@@ -444,6 +472,7 @@ export function CityOS() {
     }
     filmRef.current?.pause();
     setFilmOpen(false);
+    setSignalOpen(false);
     setView("city");
     setPalette(false);
     setMode(next);
@@ -492,6 +521,14 @@ export function CityOS() {
       setMode("world");
       setView("city");
       setPalette(false);
+      setSignalOpen(false);
+      return;
+    }
+    if (item.id === "signal") {
+      setSignalOpen(true);
+      setFilmOpen(false);
+      setPalette(false);
+      setMode("city");
       return;
     }
     if (item.id === "protocol-walk" || item.id === "run-mandate") {
@@ -506,13 +543,13 @@ export function CityOS() {
   const district = selected && mode === "city" ? DISTRICT_BY_ID[selected] : null;
   const agentFocus = focusAgent ? AGENTS.find((a) => a.id === focusAgent) : null;
   const line = attn[tick % attn.length] ?? FLOOR[0]!;
-  const cityLit = view === "city" && !filmOpen;
-  const campusOpen = view === "city" && mode === "city" && selected === "utility" && !filmOpen;
-  const streetOpen = view === "city" && mode === "city" && selected === "street" && !filmOpen;
+  const cityLit = view === "city" && !filmOpen && !signalOpen;
+  const campusOpen = view === "city" && mode === "city" && selected === "utility" && !filmOpen && !signalOpen;
+  const streetOpen = view === "city" && mode === "city" && selected === "street" && !filmOpen && !signalOpen;
   const foilOpen =
-    !filmOpen && (view === "observatory" || (view === "city" && mode === "city" && selected === "holofoil"));
-  const worldOpen = view === "city" && mode === "world" && !filmOpen;
-  const overlayOpen = campusOpen || streetOpen || foilOpen || worldOpen;
+    !filmOpen && !signalOpen && (view === "observatory" || (view === "city" && mode === "city" && selected === "holofoil"));
+  const worldOpen = view === "city" && mode === "world" && !filmOpen && !signalOpen;
+  const overlayOpen = campusOpen || streetOpen || foilOpen || worldOpen || signalOpen;
   const trail =
     view === "city" && !filmOpen && mode === "journey"
       ? JOURNEY_TRAIL
@@ -524,8 +561,8 @@ export function CityOS() {
   return (
     <div className="relative h-dvh overflow-hidden bg-obsidian text-paper" data-compute={compute}>
       <div className="absolute inset-0">
-        {cityGfx === "map" || overlayOpen || !World || mode === "start" || filmOpen || mode === "world" ? (
-          mode === "start" || filmOpen || mode === "world" ? (
+        {cityGfx === "map" || overlayOpen || !World || mode === "start" || filmOpen || mode === "world" || signalOpen ? (
+          mode === "start" || filmOpen || mode === "world" || signalOpen ? (
             <div className="h-full w-full bg-obsidian" />
           ) : (
             <CityStage
@@ -582,7 +619,7 @@ export function CityOS() {
         </div>
       ) : null}
 
-      {view === "city" && mode === "start" && !filmOpen ? (
+      {view === "city" && mode === "start" && !filmOpen && !signalOpen ? (
         <StartHere
           onGuide={() => startJourney(0)}
           onFilm={() => playFilm("open")}
@@ -592,6 +629,7 @@ export function CityOS() {
           onStreet={() => openDistrict("street")}
           onDistrict={openDistrict}
           onWorld={() => setFloor("world")}
+          onSignal={() => setSignalOpen(true)}
         />
       ) : null}
 
@@ -667,6 +705,21 @@ export function CityOS() {
         <Stack onClose={() => setFloor("city")} onCity={() => setFloor("city")} />
       ) : null}
 
+      {signalOpen && Archive ? (
+        <Archive
+          onClose={() => setSignalOpen(false)}
+          onCity={() => {
+            setSignalOpen(false);
+            setFloor("city");
+          }}
+          onWorld={() => {
+            setSignalOpen(false);
+            setFloor("world");
+          }}
+          onFilm={playFilm}
+        />
+      ) : null}
+
       <div
         data-film-stage
         className={cn(
@@ -730,8 +783,8 @@ export function CityOS() {
                 });
               }}
               className="inline-flex size-11 items-center justify-center rounded-md text-cyan shadow-[var(--shadow-border)] transition-transform duration-150 ease-out hover:text-red active:scale-[0.96]"
-              aria-label={ambientMuted ? "Unmute ambient" : "Mute ambient"}
-              title={ambientMuted ? "Ambient off" : "Ambient on"}
+              aria-label={ambientMuted ? "Unmute Star Wars lofi" : "Mute Star Wars lofi"}
+              title={ambientMuted ? "Star Wars lofi off" : "Star Wars lofi on"}
             >
               {ambientMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
             </button>

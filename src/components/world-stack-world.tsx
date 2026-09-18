@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
+import { camAt } from "@/features/world-globe/SemanticCamera";
 import { CineLights } from "@/components/cine-lights";
 import type { CityGfx } from "@/lib/gfx";
 import {
@@ -25,8 +26,12 @@ type Props = {
   gfx: CityGfx;
   reduced: boolean;
   paused: boolean;
+  zoom?: number;
+  interrupted?: boolean;
+  calm?: boolean;
   onRegion: (id: string) => void;
   onEnterCity: () => void;
+  onPointer?: () => void;
 };
 
 function earthTexture() {
@@ -69,11 +74,22 @@ function earthTexture() {
   return tex;
 }
 
-function Rig({ layer, reduced }: { layer: StackLayer; reduced: boolean }) {
+function Rig({
+  layer,
+  reduced,
+  zoom,
+  interrupted,
+}: {
+  layer: StackLayer;
+  reduced: boolean;
+  zoom?: number;
+  interrupted?: boolean;
+}) {
   const { camera } = useThree();
   const look = useRef(new THREE.Vector3());
   useFrame((_, dt) => {
-    const cam = STACK_CAM[layer];
+    if (interrupted) return;
+    const cam = zoom == null ? STACK_CAM[layer] : camAt(zoom);
     const k = reduced ? 1 : 1 - Math.exp(-dt * 2.2);
     camera.position.lerp(new THREE.Vector3(...cam.pos), k);
     look.current.lerp(new THREE.Vector3(...cam.look), k);
@@ -306,8 +322,8 @@ function Pins({
             <mesh
               onClick={(e) => {
                 e.stopPropagation();
+                onRegion(r.id);
                 if (city && layer === "city") onEnterCity();
-                else onRegion(r.id);
               }}
             >
               <sphereGeometry args={[city ? 0.055 : hot ? 0.05 : 0.034, 12, 12]} />
@@ -421,9 +437,22 @@ function Stars({ count }: { count: number }) {
   );
 }
 
-export function WorldStackWorld({ layer, region, gfx, reduced, paused, onRegion, onEnterCity }: Props) {
+export function WorldStackWorld({
+  layer,
+  region,
+  gfx,
+  reduced,
+  paused,
+  zoom,
+  interrupted,
+  calm,
+  onRegion,
+  onEnterCity,
+  onPointer,
+}: Props) {
   const busy = gfx === "high" || gfx === "medium";
   const dpr: [number, number] = gfx === "high" ? [1, 1.4] : [1, 1];
+  const starCount = calm ? 40 : busy ? 220 : 90;
   return (
     <Canvas
       className="h-full w-full bg-transparent"
@@ -434,12 +463,13 @@ export function WorldStackWorld({ layer, region, gfx, reduced, paused, onRegion,
       onCreated={({ gl }) => {
         gl.setClearColor("#02040a", 1);
       }}
+      onPointerDown={onPointer}
     >
       <CineLights stage="orbit" gfx={gfx} />
-      <Stars count={busy ? 220 : 90} />
+      <Stars count={starCount} />
       <Earth gfx={gfx} layer={layer} />
-      {layer === "orbit" || layer === "atlas" ? <Orbits busy={busy} reduced={reduced} /> : null}
-      {layer === "orbit" ? <Sats gfx={gfx} reduced={reduced} /> : null}
+      {!calm && (layer === "orbit" || layer === "atlas") ? <Orbits busy={busy} reduced={reduced} /> : null}
+      {!calm && layer === "orbit" ? <Sats gfx={gfx} reduced={reduced} /> : null}
       {layer === "atlas" || layer === "grid" ? <Borders hot={layer === "grid"} selected={region} /> : null}
       {layer === "atlas" || layer === "grid" || layer === "city" ? (
         <AtlasNet region={region} dim={layer === "grid"} />
@@ -450,7 +480,7 @@ export function WorldStackWorld({ layer, region, gfx, reduced, paused, onRegion,
         <Pins layer={layer} region={region} onRegion={onRegion} onEnterCity={onEnterCity} />
       ) : null}
       {layer === "worldq" ? <WorldQ gfx={gfx} /> : null}
-      <Rig layer={layer} reduced={reduced} />
+      <Rig layer={layer} reduced={reduced} zoom={zoom} interrupted={interrupted} />
     </Canvas>
   );
 }

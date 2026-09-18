@@ -1889,6 +1889,321 @@ html[data-compute="minimum"] .liquid-glass {
   box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-cyan) 22%, transparent);
 }
 
+.stack-card {
+  max-width: 22rem;
+  margin-left: 7.25rem;
+}
+
+.stack-city {
+  position: absolute;
+  inset: 16% 10% 30% 20%;
+  z-index: 18;
+  pointer-events: none;
+}
+
+.stack-node {
+  position: absolute;
+  display: flex;
+  min-height: 2.75rem;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.2rem 0.5rem;
+  color: var(--color-cyan);
+  background: color-mix(in oklab, var(--color-obsidian) 72%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-cyan) 28%, transparent);
+}
+
+.stack-node em {
+  font-style: normal;
+  font-family: var(--font-display);
+  font-size: 0.48rem;
+  letter-spacing: 0.12em;
+}
+
+.stack-node span {
+  font-family: var(--font-mono);
+  font-size: 0.42rem;
+  letter-spacing: 0.14em;
+  color: var(--color-red);
+}
+
+.stack-node.is-on {
+  box-shadow: 0 0 0 1px var(--color-red);
+}
+
+.cmd-hud {
+  position: absolute;
+  top: 3.35rem;
+  right: 0.55rem;
+  z-index: 32;
+  width: min(17.5rem, calc(100vw - 8.5rem));
+  padding: 0.7rem 0.8rem;
+  background: color-mix(in oklab, var(--color-obsidian) 82%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-cyan) 22%, transparent);
+}
+
+.cmd-hud.is-min {
+  width: auto;
+}
+
+.cmd-tog {
+  height: 2.2rem;
+  padding: 0 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.14em;
+  color: var(--color-cyan);
+}
+
+.cmd-kill {
+  margin-top: 0.55rem;
+  height: 2.75rem;
+  width: 100%;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--color-red);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-red) 55%, transparent);
+}
+
+.cmd-kill.is-on {
+  color: var(--color-obsidian);
+  background: var(--color-red);
+}
+
+.wq-corridor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.wq-corridor li {
+  font-family: var(--font-mono);
+  font-size: 0.42rem;
+  letter-spacing: 0.1em;
+  color: var(--color-mute);
+}
+
+.wq-corridor li.is-on {
+  color: var(--color-cyan);
+}
+
+.wq-receipt {
+  margin-top: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  color: var(--color-mute);
+}
+
+.wq-root {
+  position: absolute;
+  inset: 0;
+  background: #02040a;
+}
+
+.wq-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.wq-world {
+  position: absolute;
+  width: 2200px;
+  height: 1800px;
+  transform-origin: 0 0;
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--color-cyan) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--color-cyan) 12%, transparent) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+.wq-obj {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  color: var(--color-cyan);
+  background: color-mix(in oklab, var(--color-obsidian) 86%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-cyan) 30%, transparent);
+}
+
+.wq-obj.is-on,
+.wq-obj.is-focus {
+  box-shadow: 0 0 0 1px var(--color-red);
+}
+
+.wq-obj-mark {
+  font-family: var(--font-mono);
+  font-size: 0.42rem;
+  letter-spacing: 0.16em;
+  color: var(--color-red);
+}
+
+.wq-obj-title {
+  margin-top: 0.2rem;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.wq-obj-meta,
+.wq-obj-risk {
+  margin-top: 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.08em;
+  color: var(--color-mute);
+}
+
+.wq-chrome {
+  position: absolute;
+  bottom: 1rem;
+  left: 7.25rem;
+  z-index: 20;
+  width: min(22rem, calc(100vw - 8rem));
+  padding: 0.75rem 0.9rem;
+  background: color-mix(in oklab, var(--color-obsidian) 82%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-cyan) 22%, transparent);
+}
+
+.wq-chip {
+  height: 2rem;
+  padding: 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.1em;
+  color: var(--color-mute);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-cyan) 22%, transparent);
+}
+
+.wq-chip.is-on {
+  color: var(--color-cyan);
+}
+
+.wq-agents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.wq-agents span {
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  color: var(--color-cyan);
+}
+
+.wq-agents em {
+  display: block;
+  font-style: normal;
+  color: var(--color-mute);
+}
+
+.wq-agents .is-kill {
+  color: var(--color-red);
+}
+
+.wq-side {
+  position: absolute;
+  top: auto;
+  right: 0.55rem;
+  bottom: 8rem;
+  z-index: 21;
+  width: min(16.5rem, calc(100vw - 9rem));
+  padding: 0.7rem 0.8rem;
+  background: color-mix(in oklab, var(--color-obsidian) 86%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-cyan) 22%, transparent);
+}
+
+.wq-dl {
+  margin-top: 0.5rem;
+}
+
+.wq-dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.06em;
+}
+
+.wq-dl dt {
+  color: var(--color-mute);
+}
+
+.wq-dl dd {
+  color: var(--color-cyan);
+  text-align: right;
+}
+
+.wq-mini {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 1rem;
+  z-index: 22;
+  width: 8.5rem;
+  height: 6rem;
+  overflow: hidden;
+  background: #02040a;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-cyan) 30%, transparent);
+}
+
+.wq-mini span {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--color-cyan);
+}
+
+.wq-mini span.is-on {
+  background: var(--color-red);
+}
+
+.wq-mini-view {
+  position: absolute;
+  width: 28%;
+  height: 28%;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-red) 70%, transparent);
+}
+
+.stack-root.is-contrast .stack-hud,
+.stack-root.is-contrast .cmd-hud,
+.stack-root.is-contrast .wq-obj {
+  box-shadow: 0 0 0 1px var(--color-cyan);
+}
+
+@media (max-width: 720px) {
+  .stack-card,
+  .wq-chrome {
+    margin-left: 3.2rem;
+    max-width: calc(100vw - 3.6rem);
+  }
+  .cmd-hud,
+  .wq-side {
+    top: auto;
+    bottom: auto;
+    right: 0.4rem;
+    width: min(14rem, calc(100vw - 4.2rem));
+  }
+  .cmd-hud {
+    top: 3.2rem;
+  }
+  .wq-side {
+    display: none;
+  }
+}
+
 .stack-cta {
   height: 2.75rem;
   padding: 0 1rem;

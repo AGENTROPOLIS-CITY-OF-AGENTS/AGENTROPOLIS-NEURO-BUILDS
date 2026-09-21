@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0.0",
+  "semantic_profile": "ATG:COGNITION",
+  "semantic_profile_version": "0.2.0",
+  "axes": {
+    "presentation_mode": [
+      "MAIN_STREET",
+      "BUILDER",
+      "DEVELOPER"
+    ],
+    "text_verbosity": [
+      "LOW",
+      "MEDIUM",
+      "HIGH"
+    ],
+    "workstyle": [
+      "ARCHITECT",
+      "SPARK",
+      "ANCHOR",
+      "PHANTOM"
+    ]
+  },
+  "workstyles": {
+    "ARCHITECT": {
+      "label": "The Architect",
+      "role": "Pattern mapper and strategic planner",
+      "lead_with": "system_map",
+      "supports": [
+        "SYSTEM_MAP_FIRST",
+        "PRESERVE_CONTEXT",
+        "SHOW_PROGRESS"
+      ],
+      "behaviors": [
+        "map_dependencies",
+        "sequence_work",
+        "surface_constraints",
+        "show_tradeoffs"
+      ]
+    },
+    "SPARK": {
+      "label": "The Spark",
+      "role": "Creative idea generator and nonlinear explorer",
+      "lead_with": "options",
+      "supports": [
+        "OPTIONS_FIRST",
+        "EXAMPLES_FIRST",
+        "RECAP_AFTER_BRANCH"
+      ],
+      "behaviors": [
+        "generate_variants",
+        "branch_rapidly",
+        "capture_ideas",
+        "converge_after_exploration"
+      ]
+    },
+    "ANCHOR": {
+      "label": "The Anchor",
+      "role": "Stabilizer for process, logistics, QA, and consistency",
+      "lead_with": "checklist",
+      "supports": [
+        "CHECKLIST_MODE",
+        "ONE_ACTION_AT_A_TIME",
+        "SHOW_PROGRESS",
+        "QA_GATE"
+      ],
+      "behaviors": [
+        "show_state",
+        "reduce_context_switching",
+        "use_qa_gates",
+        "show_next_action"
+      ]
+    },
+    "PHANTOM": {
+      "label": "The Phantom",
+      "role": "Deep-focus researcher, writer, and coder",
+      "lead_with": "deep_work_block",
+      "supports": [
+        "DEEP_WORK_BLOCK",
+        "AVOID_UNNECESSARY_INTERRUPTION",
+        "PRESERVE_CONTEXT"
+      ],
+      "behaviors": [
+        "minimize_interruptions",
+        "batch_questions",
+        "work_within_bounds",
+        "return_handoff_and_receipt"
+      ]
+    }
+  },
+  "boundaries": {
+    "grants_authority": false,
+    "changes_policy": false,
+    "changes_settlement": false,
+    "employment_decision_input": false,
+    "diagnosis_inference": false
+  },
+  "provenance": {
+    "state": "RECOVERED_PROJECT_CANON_SOURCE_FILE_NOT_YET_REHYDRATED",
+    "note": "Surviving GitHub evidence verifies the Neurodivergent HRM, Emergent, and Vercel lineage. The exact original quartet source file has not yet been rehydrated."
+  }
+}

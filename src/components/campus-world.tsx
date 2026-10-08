@@ -446,7 +446,7 @@ function Interior({ id, gfx, paused }: { id: string; gfx: GfxTier; paused: boole
       ) : null}
       {gfx === "high" ? <SplatCloud seed={id} color={trim} w={w} h={h} d={d} /> : null}
       {gfx !== "low" ? <DeskAgent color={live ? "#ff2d8a" : trim} paused={paused} /> : null}
-      <Html position={[0, 1.85, -d / 2 + 0.28]} center distanceFactor={7} zIndexRange={[40, 0]} transform>
+      <Html position={[0, 1.85, -d / 2 + 0.28]} center distanceFactor={12} zIndexRange={[12, 0]} transform>
         <div className="origin-html">
           <p className="origin-html-kicker">{live ? "BOTBAE LIVE" : "ENTERED · MOCK"}</p>
           <p className="origin-html-title">{b.name}</p>

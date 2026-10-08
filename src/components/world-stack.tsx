@@ -5,18 +5,16 @@ import type { CityGfx } from "@/lib/gfx";
 import {
   STACK_BOUNDARY,
   STACK_BY_ID,
-  STACK_GOV,
-  STACK_INTRO,
   STACK_RAIL,
   STACK_REGIONS,
-  STACK_SECONDARY,
   type StackLayer,
 } from "@/lib/world-stack";
-import { CITY_RUNS } from "@/lib/journeys";
-import { DISTRICT_BY_ID } from "@/lib/grid";
+import { GLOBE_BY_SLUG, GLOBE_DISTRICTS, globeChild as findGlobeChild, globeCrumbs, type GlobeOpen } from "@/lib/globe-nav";
 import { scpLayer, scpView, useWorldLayer } from "@/features/world-globe/WorldLayerState";
 import { CommandHUD } from "@/features/spatial-control-plane/CommandHUD";
 import { WORLDQ_OBJECTS } from "@/features/spatial-control-plane/spatial-data";
+import { DOCK_NOTE, FACILITY_BY_ID, SIM_AGENTS } from "@/lib/docking-district";
+import { DockingCity } from "@/components/docking-city";
 import { cn } from "@/lib/utils";
 
 type WorldProps = {
@@ -31,14 +29,30 @@ type WorldProps = {
   onRegion: (id: string) => void;
   onEnterCity: () => void;
   onPointer: () => void;
+  globeDistrict?: string | null;
+  globeChild?: string | null;
+  onGlobe?: (id: string) => void;
 };
 
-const CITY_NODES = CITY_RUNS.map((s) => DISTRICT_BY_ID[s.districtId]).filter(Boolean);
-
-export function WorldStack({ onClose, onCity }: { onClose: () => void; onCity: () => void }) {
+export function WorldStack({
+  onClose,
+  onCity,
+  onOpen,
+  onPath,
+}: {
+  onClose: () => void;
+  onCity: () => void;
+  onOpen?: (open: GlobeOpen, districtId?: string, href?: string) => void;
+  onPath?: (district: string | null, child: string | null) => void;
+}) {
   const [World, setWorld] = useState<ComponentType<WorldProps> | null>(null);
   const [Canvas, setCanvas] = useState<ComponentType<{ killed: boolean }> | null>(null);
   const [paused, setPaused] = useState(false);
+  const [inspectOpen, setInspectOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [dockPick, setDockPick] = useState("arrival");
+  const [camMode, setCamMode] = useState<"overview" | "walk" | "accessible">("overview");
   const [killed, setKilled] = useState(false);
   const [compute, setCompute, gfx] = useCompute();
   const zoom = useWorldLayer((s) => s.zoomLevel);
@@ -55,8 +69,10 @@ export function WorldStack({ onClose, onCity }: { onClose: () => void; onCity: (
   const goLayer = useWorldLayer((s) => s.goLayer);
   const goView = useWorldLayer((s) => s.goView);
   const pickRegion = useWorldLayer((s) => s.pickRegion);
-  const pickDistrict = useWorldLayer((s) => s.pickDistrict);
   const pickMission = useWorldLayer((s) => s.pickMission);
+  const pickGlobe = useWorldLayer((s) => s.pickGlobe);
+  const globeDistrict = useWorldLayer((s) => s.globeDistrict);
+  const globeChild = useWorldLayer((s) => s.globeChild);
   const back = useWorldLayer((s) => s.back);
   const interruptCamera = useWorldLayer((s) => s.interruptCamera);
   const setFlag = useWorldLayer((s) => s.setFlag);
@@ -65,10 +81,47 @@ export function WorldStack({ onClose, onCity }: { onClose: () => void; onCity: (
   const view = scpView(zoom);
   const mapMode = compute === "minimum" || !World;
   const worldq = view === "worldq";
-  const showCity = view === "city" || view === "district";
   const current = STACK_BY_ID[layer];
-  const place = STACK_REGIONS.find((r) => r.id === region);
   const selectedItem = WORLDQ_OBJECTS.find((o) => o.id === selectedObject) ?? null;
+  const globeNode = globeDistrict ? GLOBE_BY_SLUG[globeDistrict] : null;
+  const globeKid = findGlobeChild(globeDistrict ?? "", globeChild);
+  const crumbs = globeCrumbs(globeDistrict, globeChild);
+  const heroName = (globeKid?.name ?? globeNode?.name ?? current.name).toUpperCase();
+  const heroParts = heroName.split(/\s+/);
+  const heroA = heroParts.length > 1 ? heroParts.slice(0, Math.ceil(heroParts.length / 2)).join(" ") : heroName;
+  const heroB = heroParts.length > 1 ? heroParts.slice(Math.ceil(heroParts.length / 2)).join(" ") : "";
+  const heroStatus = globeKid?.status ?? globeNode?.status ?? "PREVIEW";
+  const heroLine = globeKid?.line ?? globeNode?.line ?? current.line;
+
+  const handleGlobe = (id: string) => {
+    if (!globeDistrict || GLOBE_BY_SLUG[id]) {
+      pickGlobe(id, null);
+      onPath?.(id, null);
+      return;
+    }
+    pickGlobe(globeDistrict, id);
+    onPath?.(globeDistrict, id);
+  };
+
+  const descend = () => {
+    const node = globeKid ?? globeNode;
+    if (!node) {
+      onCity();
+      return;
+    }
+    if (node.open === "worldq") {
+      pickMission("ms-hold");
+      return;
+    }
+    if (node.open === "stay") return;
+    if (globeNode?.id === "docking" && !globeKid) {
+      setCityOpen(true);
+      setInspectOpen(true);
+      setCamMode(reduced ? "accessible" : "overview");
+      return;
+    }
+    onOpen?.(node.open, "districtId" in node ? node.districtId : globeNode?.districtId, node.href);
+  };
 
   useEffect(() => {
     if (compute === "minimum") {
@@ -136,7 +189,7 @@ export function WorldStack({ onClose, onCity }: { onClose: () => void; onCity: (
       data-scp-view={view}
       tabIndex={0}
       className={cn(
-        "stack-root absolute inset-0 z-[55] flex flex-col bg-[#02040a] text-cyan outline-none",
+        "stack-root app-frame bg-[#02040a] text-cyan outline-none",
         contrast && "is-contrast",
         calm && "is-calm",
         density === "quiet" && "is-quiet",
@@ -144,142 +197,221 @@ export function WorldStack({ onClose, onCity }: { onClose: () => void; onCity: (
       onWheel={onWheel}
       onKeyDown={onKey}
     >
-      {worldq && Canvas ? (
-        <Canvas killed={killed} />
-      ) : mapMode ? (
-        <StackFallback layer={layer} region={region} onRegion={pickRegion} />
-      ) : World ? (
-        <div className="absolute inset-0">
-          <World
-            layer={layer}
-            region={region}
-            gfx={gfx}
-            reduced={reduced}
-            paused={paused}
-            zoom={zoom}
-            interrupted={interrupted}
-            calm={calm}
-            onRegion={pickRegion}
-            onEnterCity={() => goView("district")}
-            onPointer={interruptCamera}
-          />
-        </div>
-      ) : (
-        <div className="absolute inset-0 bg-[#02040a]" />
-      )}
-
-      <header className="stack-top relative z-20 flex shrink-0 items-center gap-2 px-3 py-1.5 sm:px-4">
-        <button type="button" data-stack-exit onClick={onClose} className="h-11 px-3 font-display text-2xs tracking-[0.16em] text-cyan">
-          City
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="font-display text-xs font-bold tracking-[0.14em] text-cyan sm:text-sm">{STACK_INTRO}</p>
-          <p className="hidden truncate text-2xs tracking-[0.1em] text-mute uppercase sm:block">{STACK_SECONDARY}</p>
-        </div>
-        <button type="button" className="h-11 px-2 font-mono text-2xs tracking-[0.12em] text-mute" onClick={() => setFlag("calm", !calm)}>
-          {calm ? "CALM ON" : "CALM"}
-        </button>
-        <button type="button" className="hidden h-11 px-2 font-mono text-2xs tracking-[0.12em] text-mute sm:inline" onClick={() => setFlag("highContrast", !contrast)}>
-          {contrast ? "HI-CON" : "CONTRAST"}
-        </button>
-        <button type="button" className="hidden h-11 px-2 font-mono text-2xs tracking-[0.12em] text-mute md:inline" onClick={() => setDensity(density === "quiet" ? "full" : "quiet")}>
-          {density === "quiet" ? "QUIET" : "DENSITY"}
-        </button>
-        <ComputeDock value={compute} onChange={setCompute} />
-      </header>
-
-      <aside className="stack-rail" aria-label="World stack altitude">
-        {STACK_RAIL.map((item, i) => (
-          <button
-            key={item.id}
-            type="button"
-            data-stack-layer={item.id}
-            onClick={() => goLayer(item.id)}
-            className={cn("stack-tick", layer === item.id && "is-on")}
-          >
-            <span className="stack-tick-mark">{String(i + 1).padStart(2, "0")}</span>
-            <span className="stack-tick-copy">
-              <span className="stack-tick-label">{item.label}</span>
-              <span className="stack-tick-sub">{item.sub}</span>
-            </span>
+      <div className="app-shell">
+        <header className="shell-bar">
+          <button type="button" data-stack-exit onClick={onClose} className="shell-hit font-display">
+            City
           </button>
-        ))}
-      </aside>
-
-      {showCity && !worldq ? (
-        <div className="stack-city" aria-label="Agentropolis districts">
-          {CITY_NODES.map((d) =>
-            d ? (
+          <nav className="globe-crumb" aria-label="Hierarchy">
+            {crumbs.map((c, i) => (
               <button
-                key={d.id}
+                key={c.slug}
                 type="button"
-                className={cn("stack-node", district === d.id && "is-on")}
-                style={{ left: d.x, top: d.y }}
-                onClick={() => pickDistrict(d.id)}
+                onClick={() => {
+                  if (i === 0) {
+                    pickGlobe(null, null);
+                    onPath?.(null, null);
+                  } else if (i === 1) {
+                    pickGlobe(c.slug, null);
+                    onPath?.(c.slug, null);
+                  }
+                }}
               >
-                <span>{d.code}</span>
-                <em>{d.name}</em>
+                {c.name}
               </button>
-            ) : null,
-          )}
-        </div>
-      ) : null}
-
-      {!worldq ? (
-      <div className="stack-card pointer-events-none relative z-20 mt-auto flex flex-col gap-3 px-3 pb-4">
-        <div className="stack-hud pointer-events-auto">
-          <p className="font-mono text-2xs tracking-[0.2em] text-cyan">{current.mark} · {current.name}</p>
-          <p className="mt-1 font-display text-base font-semibold tracking-tight text-cyan sm:text-lg">{current.line}</p>
-          {density !== "quiet" ? <p className="mt-1 text-xs text-mute">{current.identity}</p> : null}
-          <p className="mt-1 text-xs tracking-[0.04em] text-cyan">{current.knows}</p>
-          {layer === "grid" ? <p className="mt-2 text-2xs leading-relaxed text-mute">{STACK_BOUNDARY}</p> : null}
-          {place ? <p className="mt-2 text-2xs tracking-[0.12em] text-cyan uppercase">{place.name} · {place.note}</p> : null}
-          {district && DISTRICT_BY_ID[district] ? (
-            <p className="mt-2 text-2xs text-mute">{DISTRICT_BY_ID[district]!.name} · {DISTRICT_BY_ID[district]!.role}</p>
-          ) : null}
-          <p className="mt-3 font-mono text-2xs text-mute">DEMO · NEURO BUILDS · estimated · zoom {zoom.toFixed(2)}</p>
-        </div>
-        <div className="pointer-events-auto flex flex-wrap gap-2">
-          {view === "district" ? (
-            <button type="button" className="stack-cta" data-stack-enter onClick={() => pickMission("ms-hold")}>
-              ENTER WORLDQ
-            </button>
-          ) : view === "city" ? (
-            <button type="button" className="stack-cta" onClick={() => goView("district")}>
-              OPEN DISTRICTS
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="stack-cta"
-              data-stack-explore
-              onClick={() => nudgeZoom(0.12)}
-            >
-              EXPLORE THE WORLD
-            </button>
-          )}
-          <button type="button" className="stack-cta is-ghost" onClick={onCity}>
-            ENTER AGENTROPOLIS
+            ))}
+          </nav>
+          <button type="button" className="shell-hit shell-hud-btn" onClick={() => setInspectOpen((v) => !v)}>
+            HUD
           </button>
+          <button type="button" className="shell-hit shell-settings-btn" onClick={() => setSettingsOpen((v) => !v)}>
+            Settings
+          </button>
+          <div className={cn("shell-tools", settingsOpen && "is-open")}>
+            <button type="button" className="shell-hit" onClick={() => setFlag("calm", !calm)}>
+              {calm ? "CALM ON" : "CALM"}
+            </button>
+            <button type="button" className="shell-hit shell-tool-secondary" onClick={() => setFlag("highContrast", !contrast)}>
+              {contrast ? "HI-CON" : "CONTRAST"}
+            </button>
+            <button type="button" className="shell-hit shell-tool-secondary" onClick={() => setDensity(density === "quiet" ? "full" : "quiet")}>
+              {density === "quiet" ? "QUIET" : "DENSITY"}
+            </button>
+            <ComputeDock value={compute} onChange={setCompute} />
+          </div>
+        </header>
+
+        <div className={cn("shell-body", inspectOpen && "is-inspect")}>
+          <nav className="shell-nav" aria-label="World stack altitude">
+            {STACK_RAIL.map((item, i) => (
+              <button
+                key={item.id}
+                type="button"
+                data-stack-layer={item.id}
+                onClick={() => goLayer(item.id)}
+                className={cn("stack-tick", layer === item.id && "is-on")}
+              >
+                <span className="stack-tick-mark">{String(i + 1).padStart(2, "0")}</span>
+                <span className="stack-tick-copy">
+                  <span className="stack-tick-label">{item.label}</span>
+                  <span className="stack-tick-sub">{item.sub}</span>
+                </span>
+              </button>
+            ))}
+          </nav>
+
+          <main className="shell-stage">
+            <div className="shell-stage-world">
+              {cityOpen && camMode !== "accessible" ? (
+                <DockingCity gfx={gfx} reduced={reduced} mode={camMode} selected={dockPick} onSelect={setDockPick} />
+              ) : cityOpen ? (
+                <DockList selected={dockPick} onSelect={setDockPick} />
+              ) : worldq && Canvas ? (
+                <Canvas killed={killed} />
+              ) : mapMode ? (
+                <StackFallback layer={layer} region={region} onRegion={pickRegion} onGlobe={handleGlobe} globeDistrict={globeDistrict} />
+              ) : World ? (
+                <World
+                  layer={layer}
+                  region={region}
+                  gfx={gfx}
+                  reduced={reduced}
+                  paused={paused}
+                  zoom={zoom}
+                  interrupted={interrupted}
+                  calm={calm}
+                  onRegion={pickRegion}
+                  onEnterCity={() => goView("district")}
+                  onPointer={interruptCamera}
+                  globeDistrict={globeDistrict}
+                  globeChild={globeChild}
+                  onGlobe={handleGlobe}
+                />
+              ) : (
+                <div className="h-full w-full bg-[#02040a]" />
+              )}
+            </div>
+
+            {!worldq ? (
+              <section className={cn("shell-hero", cityOpen && "is-city")}>
+                {cityOpen ? (
+                  <div className="shell-cam" role="group" aria-label="Camera">
+                    {(["overview", "walk", "accessible"] as const).map((id) => (
+                      <button key={id} type="button" className={cn("shell-kid", camMode === id && "is-on")} onClick={() => setCamMode(id)}>
+                        {id}
+                      </button>
+                    ))}
+                    <button type="button" className="shell-kid" onClick={() => setCityOpen(false)}>
+                      Back to globe
+                    </button>
+                  </div>
+                ) : null}
+                <label className="shell-layer-pick">
+                  <span className="sr-only">Change layer</span>
+                  <select value={layer} onChange={(e) => goLayer(e.target.value as StackLayer)} aria-label="Change layer">
+                    {STACK_RAIL.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <h1 className={cn("shell-hero-title", cityOpen && "is-city")}>
+                  <span>{heroA}</span>
+                  {heroB ? <span>{heroB}</span> : null}
+                </h1>
+                <p className="shell-status">{heroStatus}</p>
+                <p className="shell-copy">{heroLine}</p>
+                {globeNode?.children.length ? (
+                  <div className="shell-kids" aria-label="Sub-districts">
+                    {globeNode.children.map((d) => (
+                      <button key={d.id} type="button" className={cn("shell-kid", globeChild === d.id && "is-on")} onClick={() => handleGlobe(d.id)}>
+                        {d.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="shell-actions">
+                  {globeNode ? (
+                    <button type="button" className="stack-cta shell-cta" data-stack-enter onClick={descend}>
+                      {globeKid ? `ENTER ${globeKid.name}` : globeNode.open === "worldq" ? "ENTER WORLDQ / ASTRA" : "ENTER DISTRICT"}
+                    </button>
+                  ) : view === "district" ? (
+                    <button type="button" className="stack-cta shell-cta" data-stack-enter onClick={() => pickMission("ms-hold")}>
+                      ENTER WORLDQ
+                    </button>
+                  ) : view === "city" ? (
+                    <button type="button" className="stack-cta shell-cta" onClick={() => goView("district")}>
+                      OPEN DISTRICTS
+                    </button>
+                  ) : (
+                    <button type="button" className="stack-cta shell-cta" data-stack-explore onClick={() => nudgeZoom(0.12)}>
+                      EXPLORE THE WORLD
+                    </button>
+                  )}
+                  <button type="button" className="stack-cta shell-cta is-ghost" onClick={onCity}>
+                    ENTER AGENTROPOLIS
+                  </button>
+                </div>
+                {layer === "grid" ? <p className="shell-note">{STACK_BOUNDARY}</p> : null}
+                <p className="shell-note">DEMO · estimated · zoom {zoom.toFixed(2)}</p>
+              </section>
+            ) : null}
+          </main>
+
+          <aside className="shell-inspect" aria-label="Inspector">
+            {cityOpen ? <DockInspect pick={dockPick} /> : null}
+            <CommandHUD
+              layer={layer}
+              view={view}
+              district={globeNode?.name ?? district}
+              mission={mission}
+              item={selectedItem}
+              compute={compute}
+              agents={killed ? 0 : 2}
+              killed={killed}
+              onKill={() => setKilled(true)}
+              onBack={() => {
+                if (!back()) onClose();
+              }}
+            />
+          </aside>
         </div>
       </div>
-      ) : null}
+    </div>
+  );
+}
 
-      <CommandHUD
-        layer={layer}
-        view={view}
-        district={district}
-        mission={mission}
-        item={selectedItem}
-        compute={compute}
-        agents={killed ? 0 : 2}
-        killed={killed}
-        compact={worldq}
-        onKill={() => setKilled(true)}
-        onBack={() => {
-          if (!back()) onClose();
-        }}
-      />
+function DockList({ selected, onSelect }: { selected: string; onSelect: (id: string) => void }) {
+  return (
+    <div className="dock-list">
+      <p>{DOCK_NOTE}</p>
+      {Object.values(FACILITY_BY_ID).map((f) => (
+        <button key={f.id} type="button" className={cn("shell-kid", selected === f.id && "is-on")} onClick={() => onSelect(f.id)}>
+          {f.name} · {f.provenance}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function DockInspect({ pick }: { pick: string }) {
+  const facility = FACILITY_BY_ID[pick];
+  const agent = SIM_AGENTS.find((a) => a.id === pick) ?? SIM_AGENTS.find((a) => a.facilityId === pick);
+  return (
+    <div className="dock-inspect">
+      <p className="shell-status">{facility?.provenance ?? agent?.provenance ?? "UNKNOWN"}</p>
+      <p className="shell-copy">{facility?.name ?? agent?.name}</p>
+      <p className="shell-note">{facility?.role ?? "Simulated agent. Not a live runtime."}</p>
+      {agent ? (
+        <dl className="dock-dl">
+          <div><dt>Activity</dt><dd>{agent.activity}</dd></div>
+          <div><dt>Mandate</dt><dd>{agent.mandate}</dd></div>
+          <div><dt>Policy</dt><dd>{agent.policy}</dd></div>
+          <div><dt>Receipt</dt><dd>{agent.receipt}</dd></div>
+        </dl>
+      ) : null}
+      <p className="shell-note">{DOCK_NOTE}</p>
     </div>
   );
 }
@@ -288,10 +420,14 @@ function StackFallback({
   layer,
   region,
   onRegion,
+  onGlobe,
+  globeDistrict,
 }: {
   layer: StackLayer;
   region: string | null;
   onRegion: (id: string) => void;
+  onGlobe?: (id: string) => void;
+  globeDistrict?: string | null;
 }) {
   return (
     <div className="stack-fall" aria-hidden={false}>
@@ -302,28 +438,28 @@ function StackFallback({
         <span />
       </div>
       <div className="stack-fall-pins">
-        {STACK_REGIONS.map((r) => (
+        {GLOBE_DISTRICTS.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            onClick={() => onGlobe?.(d.id)}
+            className={cn("stack-fall-pin", globeDistrict === d.id && "is-on", d.id === "hermes" && "is-city")}
+            style={{ left: `${((d.lon + 180) / 360) * 100}%`, top: `${((90 - d.lat) / 180) * 100}%` }}
+          >
+            {d.name}
+          </button>
+        ))}
+        {STACK_REGIONS.filter((r) => r.kind === "city").map((r) => (
           <button
             key={r.id}
             type="button"
             onClick={() => onRegion(r.id)}
-            className={cn("stack-fall-pin", region === r.id && "is-on", r.kind === "city" && "is-city")}
+            className={cn("stack-fall-pin is-city", region === r.id && "is-on")}
             style={{ left: `${((r.lon + 180) / 360) * 100}%`, top: `${((90 - r.lat) / 180) * 100}%` }}
           >
             {r.name}
           </button>
         ))}
-        {layer === "grid"
-          ? STACK_GOV.map((g) => (
-              <span
-                key={g.id}
-                className="stack-fall-pin is-gov"
-                style={{ left: `${((g.lon + 180) / 360) * 100}%`, top: `${((90 - g.lat) / 180) * 100}%` }}
-              >
-                {g.name}
-              </span>
-            ))
-          : null}
       </div>
     </div>
   );

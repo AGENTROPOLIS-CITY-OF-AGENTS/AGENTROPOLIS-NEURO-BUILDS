@@ -477,7 +477,7 @@ function Interior({ id, onLeave }: { id: string; onLeave: () => void }) {
         <boxGeometry args={[3.4, 0.08, 1.6]} />
         <meshPhysicalMaterial color="#101820" metalness={0.9} roughness={0.12} transmission={0.28} transparent opacity={0.75} />
       </mesh>
-      <Html position={[0, 3.55, -rd / 2 + 0.7]} center distanceFactor={9} zIndexRange={[40, 0]}>
+      <Html position={[0, 2.15, -rd / 2 + 0.7]} center distanceFactor={16} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
         <div className="city-live-board">
           <p>{d?.name ?? "AGENTROPOLIS"}</p>
           <span>{live ? "LIVE LAYER" : (d?.role ?? "")}</span>

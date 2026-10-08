@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Play, Search, Volume2, VolumeX, X } from "lucide-react";
 import { CityStage } from "@/components/city-stage";
 import { type CityGfx } from "@/lib/gfx";
@@ -43,8 +44,12 @@ import { CITY_RUNS, JOURNEY_TRAIL, PROTOCOL_TRAIL, stepIndexForDistrict, type Fl
 import { protocolIndexForDistrict, PROTOCOL_RUNS } from "@/lib/atg";
 import { cn } from "@/lib/utils";
 import { createLofiBed, type LofiBed } from "@/lib/lofi-bed";
+import type { GlobeOpen } from "@/lib/globe-nav";
+import { GLOBE_BY_SLUG } from "@/lib/globe-nav";
+import { useWorldLayer } from "@/features/world-globe/WorldLayerState";
 
-export function CityOS() {
+export function CityOS({ globePath }: { globePath?: string[] }) {
+  const navigate = useNavigate();
   const [view, setView] = useState<ViewId>("city");
   const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -57,7 +62,7 @@ export function CityOS() {
   const [filmAspect, setFilmAspect] = useState<"film" | "feed">("film");
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
-  const [mode, setMode] = useState<FloorMode>("start");
+  const [mode, setMode] = useState<FloorMode>("world");
   const [step, setStep] = useState(0);
   const [compareA, setCompareA] = useState("hermes");
   const [compareB, setCompareB] = useState("construct");
@@ -86,7 +91,12 @@ export function CityOS() {
   }> | null>(null);
   const [Street, setStreet] = useState<ComponentType<{ onClose: () => void; onCity: () => void }> | null>(null);
   const [Foil, setFoil] = useState<ComponentType<{ onClose: () => void }> | null>(null);
-  const [Stack, setStack] = useState<ComponentType<{ onClose: () => void; onCity: () => void }> | null>(null);
+  const [Stack, setStack] = useState<ComponentType<{
+    onClose: () => void;
+    onCity: () => void;
+    onOpen?: (open: GlobeOpen, districtId?: string, href?: string) => void;
+    onPath?: (district: string | null, child: string | null) => void;
+  }> | null>(null);
   const [Archive, setArchive] = useState<ComponentType<{
     onClose: () => void;
     onCity: () => void;
@@ -492,6 +502,41 @@ export function CityOS() {
     }
   };
 
+  useEffect(() => {
+    const d = globePath?.[0];
+    if (!d || !GLOBE_BY_SLUG[d]) return;
+    useWorldLayer.getState().pickGlobe(d, globePath[1] ?? null);
+  }, [globePath]);
+
+  const openFromGlobe = (open: GlobeOpen, districtId?: string, href?: string) => {
+    if (open === "stay" || open === "worldq") return;
+    if (open === "external" && href) {
+      window.open(href, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (open === "protocol") {
+      setFloor("protocol");
+      return;
+    }
+    if (open === "campus") {
+      setSelected("utility");
+      setFloor("city");
+      return;
+    }
+    if (open === "street") {
+      setSelected("street");
+      setFloor("city");
+      return;
+    }
+    if (open === "holofoil") {
+      setSelected("holofoil");
+      setFloor("city");
+      return;
+    }
+    if (districtId) setSelected(districtId);
+    setFloor("city");
+  };
+
   const pickDistrict = (id: string) => {
     if (mode === "journey") {
       const idx = stepIndexForDistrict(id);
@@ -595,7 +640,7 @@ export function CityOS() {
       </div>
 
       {view === "city" && mode === "city" && cityInside ? (
-        <div className="absolute bottom-28 left-4 z-20 flex flex-wrap gap-2 sm:left-6">
+        <div className="absolute left-4 top-[7.6rem] z-30 flex flex-wrap gap-2 sm:left-6">
           {cityInside === "hermes" ? (
             <a
               href="https://agentropolis-city-of-agents.github.io/HERMES-CITY/"
@@ -702,7 +747,22 @@ export function CityOS() {
       ) : null}
 
       {worldOpen && Stack ? (
-        <Stack onClose={() => setFloor("city")} onCity={() => setFloor("city")} />
+        <Stack
+          onClose={() => setFloor("city")}
+          onCity={() => setFloor("city")}
+          onOpen={openFromGlobe}
+          onPath={(d, c) => {
+            if (!d) {
+              void navigate({ to: "/globe" });
+              return;
+            }
+            if (!c) {
+              void navigate({ to: "/globe/$district", params: { district: d } });
+              return;
+            }
+            void navigate({ to: "/globe/$district/$child", params: { district: d, child: c } });
+          }}
+        />
       ) : null}
 
       {signalOpen && Archive ? (
@@ -1024,7 +1084,7 @@ function DistrictDrawer({
       data-drawer={district.id}
       data-info={depth}
       className={cn(
-        "os-drawer absolute inset-x-0 bottom-28 z-40 flex max-h-80 flex-col rounded-t-xl bg-obsidian/78 shadow-[var(--shadow-border)] backdrop-blur-md md:inset-y-16 md:bottom-16 md:right-0 md:left-auto md:w-72 md:max-h-none md:rounded-l-xl",
+        "os-drawer absolute z-40 flex max-h-[34vh] flex-col rounded-xl bg-obsidian/92 shadow-[var(--shadow-border)] backdrop-blur-md md:max-h-none",
         construct && "botbae-glass md:rounded-none",
         utility && "utility-glass md:rounded-none",
         parallax && "parallax-glass md:rounded-none",

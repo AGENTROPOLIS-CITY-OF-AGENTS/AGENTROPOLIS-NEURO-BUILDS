@@ -12,6 +12,8 @@ type Snap = {
   selectedDistrict: string | null;
   selectedMission: string | null;
   selectedObject: string | null;
+  globeDistrict: string | null;
+  globeChild: string | null;
 };
 
 type ScpState = {
@@ -21,6 +23,8 @@ type ScpState = {
   selectedDistrict: string | null;
   selectedMission: string | null;
   selectedObject: string | null;
+  globeDistrict: string | null;
+  globeChild: string | null;
   reducedMotion: boolean;
   calm: boolean;
   highContrast: boolean;
@@ -36,6 +40,7 @@ type ScpState = {
   pickDistrict: (id: string) => void;
   pickMission: (id: string) => void;
   pickObject: (id: string | null) => void;
+  pickGlobe: (district: string | null, child?: string | null) => void;
   interruptCamera: () => void;
   clearInterrupt: () => void;
   back: () => boolean;
@@ -64,6 +69,8 @@ export const useWorldLayer = create<ScpState>()(
       selectedDistrict: null,
       selectedMission: null,
       selectedObject: null,
+      globeDistrict: null,
+      globeChild: null,
       reducedMotion: false,
       calm: false,
       highContrast: false,
@@ -121,6 +128,18 @@ export const useWorldLayer = create<ScpState>()(
         });
       },
       pickObject: (id) => set({ selectedObject: id }),
+      pickGlobe: (district, child = null) => {
+        const cur = get();
+        set({
+          history: [...cur.history, snapOf(cur)].slice(-12),
+          globeDistrict: district,
+          globeChild: child,
+          selectedCity: "agentropolis",
+          selectedRegion: "agentropolis",
+          zoomLevel: child ? ZOOM_MID.district : district ? ZOOM_MID.city : ZOOM_MID.atlas,
+          cameraInterrupted: false,
+        });
+      },
       interruptCamera: () => set({ cameraInterrupted: true }),
       clearInterrupt: () => set({ cameraInterrupted: false }),
       back: () => {
@@ -147,6 +166,8 @@ export const useWorldLayer = create<ScpState>()(
         selectedDistrict: s.selectedDistrict,
         selectedMission: s.selectedMission,
         selectedObject: s.selectedObject,
+        globeDistrict: s.globeDistrict,
+        globeChild: s.globeChild,
         calm: s.calm,
         highContrast: s.highContrast,
         density: s.density,

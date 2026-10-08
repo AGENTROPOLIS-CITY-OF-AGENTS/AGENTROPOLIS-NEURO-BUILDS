@@ -19,6 +19,7 @@ import {
   latLonToVec,
   type StackLayer,
 } from "@/lib/world-stack";
+import { GLOBE_DISTRICTS, GLOBE_BY_SLUG } from "@/lib/globe-nav";
 
 type Props = {
   layer: StackLayer;
@@ -32,6 +33,9 @@ type Props = {
   onRegion: (id: string) => void;
   onEnterCity: () => void;
   onPointer?: () => void;
+  globeDistrict?: string | null;
+  globeChild?: string | null;
+  onGlobe?: (id: string) => void;
 };
 
 function earthTexture() {
@@ -79,11 +83,13 @@ function Rig({
   reduced,
   zoom,
   interrupted,
+  lookAt,
 }: {
   layer: StackLayer;
   reduced: boolean;
   zoom?: number;
   interrupted?: boolean;
+  lookAt?: [number, number, number] | null;
 }) {
   const { camera } = useThree();
   const look = useRef(new THREE.Vector3());
@@ -92,7 +98,8 @@ function Rig({
     const cam = zoom == null ? STACK_CAM[layer] : camAt(zoom);
     const k = reduced ? 1 : 1 - Math.exp(-dt * 2.2);
     camera.position.lerp(new THREE.Vector3(...cam.pos), k);
-    look.current.lerp(new THREE.Vector3(...cam.look), k);
+    const target = lookAt ? new THREE.Vector3(...lookAt) : new THREE.Vector3(...cam.look);
+    look.current.lerp(target, k);
     camera.lookAt(look.current);
     const persp = camera as THREE.PerspectiveCamera;
     persp.fov += (cam.fov - persp.fov) * k;
@@ -437,6 +444,72 @@ function Stars({ count }: { count: number }) {
   );
 }
 
+function DistrictPlates({
+  layer,
+  globeDistrict,
+  globeChild,
+  onGlobe,
+}: {
+  layer: StackLayer;
+  globeDistrict?: string | null;
+  globeChild?: string | null;
+  onGlobe?: (id: string) => void;
+}) {
+  if (layer === "orbit" || layer === "worldq") return null;
+  const parent = globeDistrict ? GLOBE_BY_SLUG[globeDistrict] : null;
+  const kids = parent && (layer === "city" || globeChild) ? parent.children : [];
+  return (
+    <group>
+      {GLOBE_DISTRICTS.map((d) => {
+        const p = latLonToVec(d.lat, d.lon, EARTH_R + 0.12);
+        const on = globeDistrict === d.id;
+        const dim = Boolean(globeDistrict) && !on;
+        return (
+          <group key={d.id} position={p}>
+            <mesh
+              onClick={(e) => {
+                e.stopPropagation();
+                onGlobe?.(d.id);
+              }}
+            >
+              <boxGeometry args={[0.08, 0.05, 0.004]} />
+              <meshStandardMaterial
+                color={on ? "#FF2A2A" : "#19E6E6"}
+                emissive={on ? "#FF2A2A" : "#19E6E6"}
+                emissiveIntensity={on ? 1.4 : dim ? 0.15 : 0.55}
+                transparent
+                opacity={dim ? 0.28 : 0.95}
+              />
+            </mesh>
+            <Html center distanceFactor={14} style={{ pointerEvents: "auto" }}>
+              <button type="button" className={on ? "globe-plate is-on" : dim ? "globe-plate is-dim" : "globe-plate"} onClick={() => onGlobe?.(d.id)}>
+                <img src={d.poster} alt="" loading="lazy" decoding="async" />
+                <span>{d.name}</span>
+                <em>{d.status}</em>
+              </button>
+            </Html>
+          </group>
+        );
+      })}
+      {kids.map((c, i) => {
+        if (!parent) return null;
+        const p = latLonToVec(parent.lat + (i - kids.length / 2) * 4.5, parent.lon + 8 + i * 3, EARTH_R + 0.2);
+        const on = globeChild === c.id;
+        return (
+          <group key={c.id} position={p}>
+            <Html center distanceFactor={13} style={{ pointerEvents: "auto" }}>
+              <button type="button" className={on ? "globe-plate is-child is-on" : "globe-plate is-child"} onClick={() => onGlobe?.(c.id)}>
+                <span>{c.name}</span>
+                <em>{c.status}</em>
+              </button>
+            </Html>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
 export function WorldStackWorld({
   layer,
   region,
@@ -449,10 +522,15 @@ export function WorldStackWorld({
   onRegion,
   onEnterCity,
   onPointer,
+  globeDistrict,
+  globeChild,
+  onGlobe,
 }: Props) {
   const busy = gfx === "high" || gfx === "medium";
   const dpr: [number, number] = gfx === "high" ? [1, 1.4] : [1, 1];
   const starCount = calm ? 40 : busy ? 220 : 90;
+  const focus = globeDistrict ? GLOBE_BY_SLUG[globeDistrict] : null;
+  const lookAt = focus ? latLonToVec(focus.lat, focus.lon, 0.2) : null;
   return (
     <Canvas
       className="h-full w-full bg-transparent"
@@ -479,8 +557,9 @@ export function WorldStackWorld({
       {layer !== "worldq" ? (
         <Pins layer={layer} region={region} onRegion={onRegion} onEnterCity={onEnterCity} />
       ) : null}
+      <DistrictPlates layer={layer} globeDistrict={globeDistrict} globeChild={globeChild} onGlobe={onGlobe} />
       {layer === "worldq" ? <WorldQ gfx={gfx} /> : null}
-      <Rig layer={layer} reduced={reduced} zoom={zoom} interrupted={interrupted} />
+      <Rig layer={layer} reduced={reduced} zoom={zoom} interrupted={interrupted} lookAt={lookAt} />
     </Canvas>
   );
 }

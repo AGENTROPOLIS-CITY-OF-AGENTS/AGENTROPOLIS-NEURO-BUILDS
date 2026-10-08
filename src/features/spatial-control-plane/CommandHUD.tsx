@@ -19,7 +19,6 @@ export function CommandHUD({
   onKill,
   onBack,
   killed,
-  compact = false,
 }: {
   layer: StackLayer;
   view: SemanticView;
@@ -31,54 +30,52 @@ export function CommandHUD({
   onKill: () => void;
   onBack: () => void;
   killed: boolean;
-  compact?: boolean;
 }) {
-  const [open, setOpen] = useState(!compact);
   const [gate, setGate] = useState<EnvelopeStatus | null>(null);
-  useEffect(() => {
-    setOpen(!compact);
-  }, [compact]);
   useEffect(() => {
     void worldqEnvelopeStatus().then(setGate).catch(() => setGate(null));
   }, []);
   const cur = STACK_BY_ID[layer];
   return (
-    <div className={cn("cmd-hud", !open && "is-min")} data-cmd-hud>
+    <div className="cmd-hud" data-cmd-hud>
       <div className="flex items-center gap-2">
-        <button type="button" className="cmd-tog" onClick={() => setOpen((v) => !v)}>
-          {open ? "HUD" : "NEURO"}
-        </button>
-        <p className="min-w-0 truncate font-mono text-2xs tracking-[0.14em] text-cyan">
+        <p className="min-w-0 flex-1 truncate font-mono text-2xs tracking-[0.14em] text-cyan">
           {cur.mark} · {view.toUpperCase()}
         </p>
         <button type="button" className="cmd-tog" onClick={onBack}>
           BACK
         </button>
       </div>
-      {open ? (
-        <>
-          <p className="mt-2 text-xs text-cyan">{cur.line}</p>
-          <p className="mt-1 font-mono text-2xs text-mute">
-            District {district ?? "—"} · Mission {mission ?? "—"} · Agents {agents} DEMO
-          </p>
-          <p className="mt-1 font-mono text-2xs text-mute">
-            Runtime {gate?.model ?? MODEL_FOR_WEIGHT[compute]} · {gate?.configured ? "key on server" : "key missing"} · {gate?.version ?? "worldq-envelope-v1"}
-          </p>
-          <p className="mt-1 font-mono text-2xs text-mute">
-            Permission {item?.permissions ?? "APPROVAL REQUIRED"} · risk {item?.riskTier ?? "HIGH"}
-          </p>
-          <GovernanceStatus item={item} />
-          <ReceiptPanel item={item} />
-          <button
-            type="button"
-            className={cn("cmd-kill", killed && "is-on")}
-            onClick={onKill}
-            data-kill-switch
-          >
-            {killed ? "QUARANTINE SET · DEMO" : "KILL SWITCH · DEMO"}
-          </button>
-        </>
-      ) : null}
+      <details className="shell-fold" open>
+        <summary>District information</summary>
+        <p className="mt-2 text-xs text-cyan">{cur.line}</p>
+        <p className="mt-1 font-mono text-2xs text-mute">
+          District {district ?? "—"} · Mission {mission ?? "—"} · Agents {agents} DEMO
+        </p>
+      </details>
+      <details className="shell-fold">
+        <summary>Runtime</summary>
+        <p className="mt-2 font-mono text-2xs text-mute">
+          Runtime {gate?.model ?? MODEL_FOR_WEIGHT[compute]} · {gate?.configured ? "key on server" : "key missing"} · {gate?.version ?? "worldq-envelope-v1"}
+        </p>
+        <p className="mt-1 font-mono text-2xs text-mute">
+          Permission {item?.permissions ?? "APPROVAL REQUIRED"} · risk {item?.riskTier ?? "HIGH"}
+        </p>
+      </details>
+      <details className="shell-fold">
+        <summary>Governance</summary>
+        <GovernanceStatus item={item} />
+      </details>
+      <details className="shell-fold">
+        <summary>Preview</summary>
+        <ReceiptPanel item={item} />
+      </details>
+      <details className="shell-fold" open>
+        <summary>Kill switch</summary>
+        <button type="button" className={cn("cmd-kill", killed && "is-on")} onClick={onKill} data-kill-switch>
+          {killed ? "QUARANTINE SET · DEMO" : "KILL SWITCH · DEMO"}
+        </button>
+      </details>
     </div>
   );
 }

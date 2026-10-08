@@ -10,42 +10,86 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GlobeRouteImport } from './routes/globe'
+import { Route as GlobeDistrictRouteImport } from './routes/globe.$district'
 import { Route as ApiWorldqEnvelopeRouteImport } from './routes/api/worldq/envelope'
+import { Route as GlobeDistrictChildRouteImport } from './routes/globe.$district.$child'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GlobeRoute = GlobeRouteImport.update({
+  id: '/globe',
+  path: '/globe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GlobeDistrictRoute = GlobeDistrictRouteImport.update({
+  id: '/$district',
+  path: '/$district',
+  getParentRoute: () => GlobeRoute,
+} as any)
 const ApiWorldqEnvelopeRoute = ApiWorldqEnvelopeRouteImport.update({
   id: '/api/worldq/envelope',
   path: '/api/worldq/envelope',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GlobeDistrictChildRoute = GlobeDistrictChildRouteImport.update({
+  id: '/$child',
+  path: '/$child',
+  getParentRoute: () => GlobeDistrictRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/globe': typeof GlobeRouteWithChildren
+  '/globe/$district': typeof GlobeDistrictRouteWithChildren
   '/api/worldq/envelope': typeof ApiWorldqEnvelopeRoute
+  '/globe/$district/$child': typeof GlobeDistrictChildRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/globe': typeof GlobeRouteWithChildren
+  '/globe/$district': typeof GlobeDistrictRouteWithChildren
   '/api/worldq/envelope': typeof ApiWorldqEnvelopeRoute
+  '/globe/$district/$child': typeof GlobeDistrictChildRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/globe': typeof GlobeRouteWithChildren
+  '/globe/$district': typeof GlobeDistrictRouteWithChildren
   '/api/worldq/envelope': typeof ApiWorldqEnvelopeRoute
+  '/globe/$district/$child': typeof GlobeDistrictChildRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/worldq/envelope'
+  fullPaths:
+    | '/'
+    | '/globe'
+    | '/globe/$district'
+    | '/api/worldq/envelope'
+    | '/globe/$district/$child'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/worldq/envelope'
-  id: '__root__' | '/' | '/api/worldq/envelope'
+  to:
+    | '/'
+    | '/globe'
+    | '/globe/$district'
+    | '/api/worldq/envelope'
+    | '/globe/$district/$child'
+  id:
+    | '__root__'
+    | '/'
+    | '/globe'
+    | '/globe/$district'
+    | '/api/worldq/envelope'
+    | '/globe/$district/$child'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GlobeRoute: typeof GlobeRouteWithChildren
   ApiWorldqEnvelopeRoute: typeof ApiWorldqEnvelopeRoute
 }
 
@@ -58,6 +102,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/globe': {
+      id: '/globe'
+      path: '/globe'
+      fullPath: '/globe'
+      preLoaderRoute: typeof GlobeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/globe/$district': {
+      id: '/globe/$district'
+      path: '/$district'
+      fullPath: '/globe/$district'
+      preLoaderRoute: typeof GlobeDistrictRouteImport
+      parentRoute: typeof GlobeRoute
+    }
     '/api/worldq/envelope': {
       id: '/api/worldq/envelope'
       path: '/api/worldq/envelope'
@@ -65,11 +123,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWorldqEnvelopeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/globe/$district/$child': {
+      id: '/globe/$district/$child'
+      path: '/$child'
+      fullPath: '/globe/$district/$child'
+      preLoaderRoute: typeof GlobeDistrictChildRouteImport
+      parentRoute: typeof GlobeDistrictRoute
+    }
   }
 }
 
+interface GlobeDistrictRouteChildren {
+  GlobeDistrictChildRoute: typeof GlobeDistrictChildRoute
+}
+
+const GlobeDistrictRouteChildren: GlobeDistrictRouteChildren = {
+  GlobeDistrictChildRoute: GlobeDistrictChildRoute,
+}
+
+const GlobeDistrictRouteWithChildren = GlobeDistrictRoute._addFileChildren(
+  GlobeDistrictRouteChildren,
+)
+
+interface GlobeRouteChildren {
+  GlobeDistrictRoute: typeof GlobeDistrictRouteWithChildren
+}
+
+const GlobeRouteChildren: GlobeRouteChildren = {
+  GlobeDistrictRoute: GlobeDistrictRouteWithChildren,
+}
+
+const GlobeRouteWithChildren = GlobeRoute._addFileChildren(GlobeRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GlobeRoute: GlobeRouteWithChildren,
   ApiWorldqEnvelopeRoute: ApiWorldqEnvelopeRoute,
 }
 export const routeTree = rootRouteImport

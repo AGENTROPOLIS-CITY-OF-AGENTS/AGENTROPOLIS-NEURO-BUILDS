@@ -15,6 +15,9 @@ export function WorldGlobe(props: {
   onRegion: (id: string) => void;
   onEnterCity: () => void;
   onPointer: () => void;
+  globeDistrict?: string | null;
+  globeChild?: string | null;
+  onGlobe?: (id: string) => void;
 }) {
   return <WorldStackWorld {...props} />;
 }

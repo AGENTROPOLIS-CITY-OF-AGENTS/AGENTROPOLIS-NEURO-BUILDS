@@ -119,11 +119,13 @@ No public copy should imply Jev is required for AGENTROPOLIS.
 
 ## Public disclosure source
 
-GitHub Pages consumers may use:
+Canonical source lives in:
 
-`https://agentropolis-city-of-agents.github.io/AGENTROPOLIS-DESIGN-SYSTEM/js/loop-baseline.js`
+`AGENTROPOLIS-DESIGN-SYSTEM/js/loop-baseline.js`
 
-NEUROBUILDS may implement the same component natively if Grok does not permit external script loading. Behavior and semantics must remain equivalent.
+Consumers must vendor a reviewed copy into their own build artifact. Do **not** execute the mutable Design System copy as a cross-repository runtime dependency.
+
+NEUROBUILDS implements the disclosure natively in its root application shell so every route inherits it. Behavior and semantics must remain equivalent.
 
 ## Acceptance checks
 

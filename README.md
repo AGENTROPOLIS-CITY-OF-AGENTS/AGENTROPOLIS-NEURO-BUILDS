@@ -31,3 +31,18 @@ This repository carries UI/builder-ready reference data in:
 ## Safety boundary
 
 These modes personalize interaction and workflow support only. They do not grant authority and must not be used for candidate ranking, hiring, promotion, compensation, termination, eligibility, or automated performance scoring.
+
+
+## Public Loop Engineering Baseline
+
+NEURO public surfaces consume the AGENTROPOLIS bounded-cognition design contract:
+
+**Cheap Gates → Reflex Decision → QRAG → Dense Feedback → Quantization Torque → Receipt → Audit**
+
+QRAG is the **Quantized Retrieval-Augmented Generation Loop**:
+
+> A bounded closed-loop retrieval architecture that iteratively retrieves, evaluates, executes, verifies, and re-queries under explicit token, cost, quality, and retry constraints.
+
+For `neurobuilds.grok.me`, use the public-surface handoff in `docs/NEUROBUILDS-QRAG-PUBLIC-SURFACE.md` and the builder-ready prompt in `docs/GROK-QRAG-ROLLOUT-PROMPT.md`.
+
+**Classifier output is evidence, not authority.** Public UI must not imply that a semantic score, confidence value, or model route grants execution permission.
